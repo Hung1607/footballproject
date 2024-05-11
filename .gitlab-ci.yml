@@ -1,0 +1,50 @@
+# Disable the Gradle daemon for Continuous Integration servers as correctness
+# is usually a priority over speed in CI environments. Using a fresh
+# runtime for each build is more reliable since the runtime is completely
+# isolated from any previous builds.
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  SONAR_TOKEN: "$sqp_551e120a8462fcdeeb810ff24ef46d57ffc9bc41" 
+
+stages:
+  - build
+  - test
+  - sonarqube
+  - continuousDelivery
+
+before_script:
+  - ./gradlew clean assemble
+
+build:
+  stage: build
+  script:
+    - ./gradlew assemble
+
+test:
+  stage: test
+  script:
+    - ./gradlew test
+sonarqube:
+    stage: sonarqube
+    script:
+      - ./gradlew sonarqube -Dsonar.host.url=$http://localhost:9002/projects -Dsonar.login=$SONAR_TOKEN
+
+ContinuousDelivery:
+  stage: continuousDelivery
+  script:
+  - docker stop docker_football_network_staging
+  - docker rm docker_football_network_staging
+  - docker build -t football:latest . #docker image
+  - docker run -d -p 8081:8080 --net=docker_football_network_staging --env spring_profiles_active=staging --name docker_football_app_backend football:latest  # Start the updated backend container
+
+
+
+
+
+
+
+
+
+    #    - docker start Football-App  # database container
+    #    - docker build -t football:latest . # building image for backend app
+    #    - docker start docker_football_backend # start backend container
